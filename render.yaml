@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: llm-evaluation-api
+    runtime: python
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -e .
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    disk:
+      name: llm-eval-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DATABASE_PATH
+        value: /var/data/llm_eval.sqlite
+      - key: REPORTS_DIR
+        value: /var/data/reports
+      - key: HF_BASE_URL
+        value: https://router.huggingface.co/v1
+      - key: DEFAULT_TARGET_MODEL
+        value: Qwen/Qwen2.5-7B-Instruct:fastest
+      - key: DEFAULT_ATTACKER_MODEL
+        value: Qwen/Qwen2.5-7B-Instruct:fastest
+      - key: DEFAULT_JUDGE_MODEL
+        value: Qwen/Qwen2.5-7B-Instruct:fastest
+      - key: ALLOW_OFFLINE_FALLBACK
+        value: "true"
+      - key: MAX_PARALLELISM
+        value: "4"
+      - key: CORS_ORIGINS
+        value: https://llm-evaluation-console.vercel.app
+      - key: HF_TOKEN
+        sync: false

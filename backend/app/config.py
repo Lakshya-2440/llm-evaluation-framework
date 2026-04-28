@@ -14,6 +14,10 @@ class Settings(BaseSettings):
 
     app_name: str = "LLM Evaluation & Red-Teaming Framework"
     api_key: str | None = Field(default=None, alias="APP_API_KEY")
+    cors_origins: str = Field(
+        default="http://localhost:5173,http://127.0.0.1:5173",
+        alias="CORS_ORIGINS",
+    )
 
     database_path: Path = Field(default=Path("../data/llm_eval.sqlite"), alias="DATABASE_PATH")
     reports_dir: Path = Field(default=Path("../data/reports"), alias="REPORTS_DIR")
@@ -34,6 +38,10 @@ class Settings(BaseSettings):
     )
     allow_offline_fallback: bool = Field(default=True, alias="ALLOW_OFFLINE_FALLBACK")
     max_parallelism: int = Field(default=8, alias="MAX_PARALLELISM")
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache
