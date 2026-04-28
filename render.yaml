@@ -2,22 +2,18 @@ services:
   - type: web
     name: llm-evaluation-api
     runtime: python
-    plan: starter
+    plan: free
     rootDir: backend
     buildCommand: pip install -e .
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
-    disk:
-      name: llm-eval-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
       - key: DATABASE_PATH
-        value: /var/data/llm_eval.sqlite
+        value: /tmp/llm_eval.sqlite
       - key: REPORTS_DIR
-        value: /var/data/reports
+        value: /tmp/reports
       - key: HF_BASE_URL
         value: https://router.huggingface.co/v1
       - key: DEFAULT_TARGET_MODEL
