@@ -1,0 +1,33 @@
+llm-eval:
+  image: python:3.12
+  variables:
+    APP_API_KEY: local-ci-key
+  script:
+    - pip install uv
+    - cd backend
+    - uv venv
+    - . .venv/bin/activate
+    - uv pip install -e ".[dev]"
+    - uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+    - sleep 5
+    - |
+      RUN_ID=$(curl -s -X POST http://localhost:8000/eval/run \
+        -H "Content-Type: application/json" \
+        -H "X-API-Key: local-ci-key" \
+        -d '{"categories":["hallucination","safety"],"attacks_per_category":3,"rounds":2,"use_mart":true,"success_threshold":6}' | python -c "import sys,json; print(json.load(sys.stdin)['id'])")
+      python - <<PY
+      import json, time, urllib.request
+      run_id = "$RUN_ID"
+      headers = {"X-API-Key": "local-ci-key"}
+      for _ in range(120):
+          req = urllib.request.Request(f"http://localhost:8000/eval/run/{run_id}/status", headers=headers)
+          data = json.loads(urllib.request.urlopen(req).read())
+          if data["status"] == "completed":
+              assert data["summary"]["pass_rate"] >= 80, data
+              break
+          if data["status"] == "failed":
+              raise SystemExit(data)
+          time.sleep(2)
+      else:
+          raise SystemExit("eval timeout")
+      PY
