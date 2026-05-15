@@ -4,7 +4,14 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-AttackCategory = Literal["hallucination", "bias", "safety", "robustness"]
+AttackCategory = Literal[
+    "hallucination",
+    "bias",
+    "safety",
+    "robustness",
+    "privacy",
+    "tool_misuse",
+]
 RunStatus = Literal["queued", "running", "completed", "failed"]
 ReportFormat = Literal["json", "csv", "technical", "executive", "pdf"]
 
@@ -90,4 +97,7 @@ class ComparisonItem(BaseModel):
     pass_rate: float
     average_risk: float
     category_pass_rates: dict[str, float]
+    violation_rate: float
+    hallucination_rate: float
+    violation_reduction_vs_first: float | None = None
     n_attacks: int

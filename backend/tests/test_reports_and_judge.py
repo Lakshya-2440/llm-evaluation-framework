@@ -1,6 +1,7 @@
 import pytest
 
 from app.config import Settings
+from app.services.attack_library import generated_prompt_capacity, list_attack_catalog
 from app.services.judge import JudgeService
 from app.services.model_clients import HuggingFaceChatClient
 from app.services.reports import simple_pdf_bytes, summarize_run
@@ -34,5 +35,12 @@ def test_summary_and_pdf_generation():
     }
     summary = summarize_run(detail)
     assert summary["pass_rate"] == 50
+    assert summary["violation_rate"] == 50
     assert summary["risk_rating"] == "Red"
     assert simple_pdf_bytes("Test", "# Report\nBody").startswith(b"%PDF")
+
+
+def test_catalog_supports_resume_scale():
+    catalog = list_attack_catalog()
+    assert catalog["failure_category_count"] == 6
+    assert generated_prompt_capacity() >= 500

@@ -17,6 +17,9 @@ def summarize_run(detail: dict[str, Any]) -> dict[str, Any]:
     by_category: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for attack in attacks:
         by_category[attack["category"]].append(attack)
+    failed = total - passed
+    hallucination_items = by_category.get("hallucination", [])
+    hallucination_failures = sum(1 for attack in hallucination_items if not attack.get("passed"))
     category_pass_rates = {
         category: round(
             sum(1 for attack in items if attack.get("passed")) / len(items) * 100,
@@ -38,11 +41,36 @@ def summarize_run(detail: dict[str, Any]) -> dict[str, Any]:
     return {
         "n_attacks": total,
         "pass_rate": round((passed / total * 100) if total else 0, 1),
+        "violation_rate": round((failed / total * 100) if total else 0, 1),
+        "hallucination_rate": round((hallucination_failures / len(hallucination_items) * 100) if hallucination_items else 0, 1),
         "average_risk": average_risk,
         "category_pass_rates": category_pass_rates,
+        "category_failure_counts": {
+            category: sum(1 for attack in items if not attack.get("passed"))
+            for category, items in by_category.items()
+        },
         "risk_rating": risk_rating,
         "top_failures": top_failures,
     }
+
+
+def compare_summaries(baseline: dict[str, Any], candidate: dict[str, Any]) -> dict[str, float | None]:
+    baseline_summary = baseline.get("summary") or summarize_run(baseline)
+    candidate_summary = candidate.get("summary") or summarize_run(candidate)
+    baseline_rate = float(baseline_summary.get("violation_rate") or 0)
+    candidate_rate = float(candidate_summary.get("violation_rate") or 0)
+    hallucination_baseline = float(baseline_summary.get("hallucination_rate") or 0)
+    hallucination_candidate = float(candidate_summary.get("hallucination_rate") or 0)
+    return {
+        "violation_reduction_percent": percent_reduction(baseline_rate, candidate_rate),
+        "hallucination_reduction_percent": percent_reduction(hallucination_baseline, hallucination_candidate),
+    }
+
+
+def percent_reduction(before: float, after: float) -> float | None:
+    if before <= 0:
+        return None
+    return round((before - after) / before * 100, 1)
 
 
 def technical_markdown(detail: dict[str, Any]) -> str:
@@ -60,6 +88,8 @@ def technical_markdown(detail: dict[str, Any]) -> str:
         "",
         f"- Overall risk: **{summary['risk_rating']}**",
         f"- Pass rate: **{summary['pass_rate']}%**",
+        f"- Violation rate: **{summary['violation_rate']}%**",
+        f"- Hallucination failure rate: **{summary['hallucination_rate']}%**",
         f"- Average risk score: **{summary['average_risk']} / 10**",
         f"- Attacks scored: **{summary['n_attacks']}**",
         "",
@@ -103,7 +133,8 @@ def executive_markdown(detail: dict[str, Any]) -> str:
         f"Overall deployment risk: **{summary['risk_rating']}**",
         "",
         f"The evaluation ran {summary['n_attacks']} adversarial probes against `{detail['target_model']}`. "
-        f"Pass rate was {summary['pass_rate']}% with average risk score {summary['average_risk']} / 10.",
+        f"Pass rate was {summary['pass_rate']}%, violation rate was {summary['violation_rate']}%, "
+        f"and hallucination failure rate was {summary['hallucination_rate']}%.",
         "",
         "## Top Failure Modes",
         "",
@@ -148,6 +179,7 @@ def csv_export(detail: dict[str, Any]) -> str:
             "strategy",
             "score",
             "passed",
+            "violation",
             "prompt",
             "response_text",
             "rationale",
@@ -163,6 +195,7 @@ def csv_export(detail: dict[str, Any]) -> str:
                 "strategy": attack["metadata"].get("strategy", ""),
                 "score": attack.get("score", ""),
                 "passed": attack.get("passed", ""),
+                "violation": "" if attack.get("passed") is None else not attack.get("passed"),
                 "prompt": attack["prompt"],
                 "response_text": attack.get("response_text", ""),
                 "rationale": attack.get("rationale", ""),

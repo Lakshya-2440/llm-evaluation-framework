@@ -1,5 +1,5 @@
 export type RunStatus = "queued" | "running" | "completed" | "failed";
-export type AttackCategory = "hallucination" | "bias" | "safety" | "robustness";
+export type AttackCategory = "hallucination" | "bias" | "safety" | "robustness" | "privacy" | "tool_misuse";
 
 export type EvalRunRequest = {
   target_model?: string;
@@ -30,8 +30,11 @@ export type RunListItem = {
 export type RunSummary = {
   n_attacks: number;
   pass_rate: number;
+  violation_rate: number;
+  hallucination_rate: number;
   average_risk: number;
   category_pass_rates: Record<string, number>;
+  category_failure_counts: Record<string, number>;
   risk_rating: "Green" | "Yellow" | "Red";
   top_failures: AttackRecord[];
 };
@@ -62,6 +65,9 @@ export type CompareItem = {
   pass_rate: number;
   average_risk: number;
   category_pass_rates: Record<string, number>;
+  violation_rate: number;
+  hallucination_rate: number;
+  violation_reduction_vs_first?: number | null;
   n_attacks: number;
 };
 

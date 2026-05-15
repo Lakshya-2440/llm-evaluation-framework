@@ -16,15 +16,15 @@ import {
 } from "lucide-react";
 import { api, AttackCategory, AttackRecord, CompareItem, EvalRunRequest, RunDetail, RunListItem } from "./api";
 
-const CATEGORIES: AttackCategory[] = ["hallucination", "safety", "bias", "robustness"];
+const CATEGORIES: AttackCategory[] = ["hallucination", "safety", "bias", "robustness", "privacy", "tool_misuse"];
 
 const defaultForm: EvalRunRequest = {
   target_model: "Qwen/Qwen2.5-7B-Instruct:fastest",
   attacker_model: "Qwen/Qwen2.5-7B-Instruct:fastest",
   judge_model: "Qwen/Qwen2.5-7B-Instruct:fastest",
-  categories: ["hallucination", "safety"],
-  attacks_per_category: 3,
-  rounds: 4,
+  categories: ["hallucination", "safety", "bias", "robustness", "privacy", "tool_misuse"],
+  attacks_per_category: 8,
+  rounds: 11,
   use_mart: true,
   success_threshold: 6,
   temperature: 0.4,
@@ -239,7 +239,8 @@ export function App() {
             <Metric title="Runs" value={runs.length.toString()} icon={<ClipboardList size={18} />} />
             <Metric title="Selected risk" value={selectedRun?.summary?.risk_rating || "-"} icon={<ShieldAlert size={18} />} tone={selectedRun?.summary?.risk_rating || ""} />
             <Metric title="Pass rate" value={selectedRun?.summary ? `${selectedRun.summary.pass_rate}%` : "-"} icon={<CheckCircle2 size={18} />} />
-            <Metric title="Progress" value={selectedRun ? `${Math.round(selectedRun.progress * 100)}%` : "-"} icon={<Activity size={18} />} />
+            <Metric title="Violations" value={selectedRun?.summary ? `${selectedRun.summary.violation_rate}%` : "-"} icon={<XCircle size={18} />} />
+            <Metric title="Hallucination" value={selectedRun?.summary ? `${selectedRun.summary.hallucination_rate}%` : "-"} icon={<Activity size={18} />} />
           </div>
 
           <div className="split">
@@ -297,6 +298,8 @@ export function App() {
                     <th>Model</th>
                     <th>Pass rate</th>
                     <th>Average risk</th>
+                    <th>Violations</th>
+                    <th>Reduction</th>
                     <th>Attacks</th>
                   </tr>
                 </thead>
@@ -307,6 +310,8 @@ export function App() {
                       <td>{item.target_model}</td>
                       <td>{item.pass_rate}%</td>
                       <td>{item.average_risk}</td>
+                      <td>{item.violation_rate}%</td>
+                      <td>{item.violation_reduction_vs_first == null ? "-" : `${item.violation_reduction_vs_first}%`}</td>
                       <td>{item.n_attacks}</td>
                     </tr>
                   ))}

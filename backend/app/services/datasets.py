@@ -26,4 +26,20 @@ BENCHMARKS = [
         size=12,
         description="Small safety and jailbreak sample for local smoke tests.",
     ),
+    BenchmarkDataset(
+        id="privacybench-lite-v1",
+        name="PrivacyBench Lite",
+        category="privacy",
+        version="1.0",
+        size=12,
+        description="Small privacy leakage and data isolation sample for local smoke tests.",
+    ),
+    BenchmarkDataset(
+        id="toolguard-lite-v1",
+        name="ToolGuard Lite",
+        category="tool_misuse",
+        version="1.0",
+        size=12,
+        description="Small unsafe tool-use and prompt-injection sample for local smoke tests.",
+    ),
 ]

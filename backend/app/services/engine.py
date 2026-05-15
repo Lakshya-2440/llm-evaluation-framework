@@ -11,6 +11,7 @@ from app.services.attack_library import build_seed_attacks
 from app.services.judge import JudgeService
 from app.services.model_clients import HuggingFaceChatClient
 from app.services.reports import summarize_run
+from app.services.tracing import EvaluationTracer
 
 
 class EvaluationEngine:
@@ -19,6 +20,7 @@ class EvaluationEngine:
         self.client = client
         self.judge = JudgeService(client)
         self.max_parallelism = max(1, max_parallelism)
+        self.tracer = EvaluationTracer(client.settings)
 
     async def run(self, run_id: str) -> None:
         run = self.db.get_run(run_id)
@@ -30,6 +32,17 @@ class EvaluationEngine:
         total_attacks = rounds * len(categories) * config.attacks_per_category
         completed = 0
         previous_results: list[dict[str, Any]] = []
+        trace_id = self.tracer.trace_run_start(
+            run_id,
+            {
+                "target_model": run["target_model"],
+                "attacker_model": run["attacker_model"],
+                "judge_model": run["judge_model"],
+                "categories": categories,
+                "rounds": rounds,
+                "attacks_per_category": config.attacks_per_category,
+            },
+        )
 
         self.db.update_run(run_id, status="running", progress=0.01)
         try:
@@ -79,6 +92,7 @@ class EvaluationEngine:
             detail = self.db.get_run_detail(run_id)
             summary = summarize_run(detail or {"attacks": []})
             self.db.update_run(run_id, status="completed", progress=1.0, summary=summary)
+            self.tracer.trace_run_end(trace_id, summary)
         except Exception as exc:
             self.db.update_run(run_id, status="failed", error=str(exc))
 
@@ -147,7 +161,7 @@ class EvaluationEngine:
                 "judge_model": run["judge_model"],
             }
         )
-        return {
+        result = {
             "id": attack_id,
             "round_number": round_number,
             "category": attack["category"],
@@ -157,6 +171,8 @@ class EvaluationEngine:
             "passed": score.passed,
             "rationale": score.rationale,
         }
+        self.tracer.trace_attack(run["id"], attack, result)
+        return result
 
     async def _maybe_refine_attacks(
         self,

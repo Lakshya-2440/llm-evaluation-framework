@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     allow_offline_fallback: bool = Field(default=True, alias="ALLOW_OFFLINE_FALLBACK")
     max_parallelism: int = Field(default=8, alias="MAX_PARALLELISM")
 
+    langsmith_api_key: str | None = Field(default=None, alias="LANGSMITH_API_KEY")
+    langsmith_project: str = Field(default="llm-evaluation-framework", alias="LANGSMITH_PROJECT")
+    langsmith_tracing: bool = Field(default=False, alias="LANGSMITH_TRACING")
+
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]

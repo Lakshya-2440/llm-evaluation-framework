@@ -30,3 +30,9 @@ services:
         value: https://llm-evaluation-console.vercel.app
       - key: HF_TOKEN
         sync: false
+      - key: LANGSMITH_TRACING
+        value: "false"
+      - key: LANGSMITH_API_KEY
+        sync: false
+      - key: LANGSMITH_PROJECT
+        value: llm-evaluation-framework

@@ -23,6 +23,7 @@ from app.services.attack_library import list_attack_catalog
 from app.services.datasets import BENCHMARKS
 from app.services.engine import EvaluationEngine
 from app.services.model_clients import HuggingFaceChatClient
+from app.services.quality_metrics import metric_registry
 from app.services.reports import csv_export, executive_markdown, json_export, simple_pdf_bytes, summarize_run, technical_markdown
 
 settings = get_settings()
@@ -64,7 +65,9 @@ def health() -> dict[str, object]:
 
 @app.get("/catalog/attacks")
 def attack_catalog(_: Annotated[None, Depends(require_api_key)]) -> dict[str, object]:
-    return list_attack_catalog()
+    catalog = list_attack_catalog()
+    catalog["metrics"] = metric_registry()
+    return catalog
 
 
 @app.get("/datasets", response_model=list[BenchmarkDataset])
@@ -134,11 +137,19 @@ def compare_runs(
     run_ids: str = Query(description="Comma-separated eval run IDs."),
 ) -> list[ComparisonItem]:
     items: list[ComparisonItem] = []
+    baseline_summary: dict[str, object] | None = None
     for run_id in [value.strip() for value in run_ids.split(",") if value.strip()]:
         detail = db.get_run_detail(run_id)
         if not detail:
             continue
         summary = detail.get("summary") or summarize_run(detail)
+        if baseline_summary is None:
+            baseline_summary = summary
+        baseline_violation_rate = float((baseline_summary or {}).get("violation_rate") or 0)
+        current_violation_rate = float(summary.get("violation_rate") or 0)
+        reduction = None
+        if baseline_violation_rate > 0 and summary is not baseline_summary:
+            reduction = round((baseline_violation_rate - current_violation_rate) / baseline_violation_rate * 100, 1)
         items.append(
             ComparisonItem(
                 run_id=run_id,
@@ -147,6 +158,9 @@ def compare_runs(
                 pass_rate=summary["pass_rate"],
                 average_risk=summary["average_risk"],
                 category_pass_rates=summary["category_pass_rates"],
+                violation_rate=summary["violation_rate"],
+                hallucination_rate=summary["hallucination_rate"],
+                violation_reduction_vs_first=reduction,
                 n_attacks=summary["n_attacks"],
             )
         )
