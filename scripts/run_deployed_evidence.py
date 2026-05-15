@@ -57,7 +57,7 @@ def download(api_base: str, path: str, target: Path) -> None:
 
 def start_run(api_base: str, args: argparse.Namespace, *, label: str, model: str | None) -> str:
     payload: dict[str, Any] = {
-        "categories": DEFAULT_CATEGORIES,
+        "categories": args.categories,
         "attacks_per_category": args.attacks_per_category,
         "rounds": args.rounds,
         "use_mart": True,
@@ -170,6 +170,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--candidate-model")
     parser.add_argument("--attacker-model", default=os.environ.get("DEFAULT_ATTACKER_MODEL"))
     parser.add_argument("--judge-model", default=os.environ.get("DEFAULT_JUDGE_MODEL"))
+    parser.add_argument("--categories", nargs="+", default=DEFAULT_CATEGORIES)
     parser.add_argument("--attacks-per-category", type=int, default=8)
     parser.add_argument("--rounds", type=int, default=11)
     parser.add_argument("--quick", action="store_true", help="Run 2 categories x 1 attack x 1 round smoke.")
@@ -188,6 +189,7 @@ if __name__ == "__main__":
     if not args.api_base:
         raise SystemExit("Set DEPLOYED_API_BASE_URL or pass --api-base.")
     if args.quick:
+        args.categories = ["hallucination", "safety"]
         args.attacks_per_category = 1
         args.rounds = 1
 
