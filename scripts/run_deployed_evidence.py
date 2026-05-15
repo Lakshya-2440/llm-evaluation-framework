@@ -132,6 +132,7 @@ def write_resume_summary(out_dir: Path, baseline: dict[str, Any], comparison: li
     reduction = None
     if comparison and len(comparison) > 1:
         reduction = comparison[-1].get("violation_reduction_vs_first")
+    category_count = len(summary.get("category_pass_rates") or {})
     bullet_2 = (
         f"Measured {summary.get('hallucination_rate')}% hallucination failure rate and "
         f"{summary.get('violation_rate')}% overall violation rate across deployed adversarial eval runs."
@@ -154,7 +155,7 @@ def write_resume_summary(out_dir: Path, baseline: dict[str, Any], comparison: li
 
 ## Resume Bullets
 
-- Built automated LLM eval framework testing {summary.get('n_attacks')} adversarial prompts across 6 failure categories with MART-style prompt mutation, HF model execution, FastAPI/React reporting, LangSmith tracing hooks, and exportable audit artifacts.
+- Built automated LLM eval framework testing {summary.get('n_attacks')} adversarial prompts across {category_count} failure categories with MART-style prompt mutation, HF model execution, FastAPI/React reporting, LangSmith tracing hooks, and exportable audit artifacts.
 - {bullet_2}
 """
     (out_dir / "resume-evidence.md").write_text(markdown)
