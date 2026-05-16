@@ -204,7 +204,7 @@ def write_resume_summary(
         before = summary.get("violation_rate")
         after = candidate_summary.get("violation_rate") if candidate_summary else None
         bullet_2 = (
-            f"Reduced violation rate from {before}% to {after}% ({reduction}% relative reduction) "
+            f"Reduced violation rate from {before}% to {after}% ({reduction}% relative reduction) after policy guardrail mitigation "
             f"using exported technical, CSV, JSON, and PDF audit artifacts."
         )
 
