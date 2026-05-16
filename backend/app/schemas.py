@@ -14,6 +14,7 @@ AttackCategory = Literal[
 ]
 RunStatus = Literal["queued", "running", "completed", "failed"]
 ReportFormat = Literal["json", "csv", "technical", "executive", "pdf"]
+MitigationMode = Literal["none", "policy_guardrail"]
 
 
 class EvalRunRequest(BaseModel):
@@ -30,6 +31,7 @@ class EvalRunRequest(BaseModel):
     success_threshold: float = Field(default=6.0, ge=0, le=10)
     custom_judge_prompt: str | None = None
     target_system_prompt: str | None = None
+    mitigation_mode: MitigationMode = "none"
     temperature: float = Field(default=0.4, ge=0, le=2)
     max_tokens: int = Field(default=512, ge=64, le=4096)
 

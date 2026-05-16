@@ -75,6 +75,8 @@ def start_run(api_base: str, args: argparse.Namespace, *, label: str, model: str
         payload["custom_judge_prompt"] = args.custom_judge_prompt
     if args.target_system_prompt:
         payload["target_system_prompt"] = args.target_system_prompt
+    if args.mitigation_mode:
+        payload["mitigation_mode"] = args.mitigation_mode
 
     created = request_json(api_base, "/eval/run", method="POST", payload=payload)
     run_id = created["id"]
@@ -247,6 +249,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-tokens", type=int, default=512)
     parser.add_argument("--custom-judge-prompt")
     parser.add_argument("--target-system-prompt")
+    parser.add_argument("--mitigation-mode", choices=["none", "policy_guardrail"], default=None)
     parser.add_argument("--poll-seconds", type=float, default=2.0)
     parser.add_argument("--timeout-seconds", type=int, default=3600)
     return parser.parse_args()
@@ -278,7 +281,7 @@ if __name__ == "__main__":
 
     comparison = None
     candidate = None
-    if args.candidate_id or args.candidate_model or args.target_system_prompt:
+    if args.candidate_id or args.candidate_model or args.target_system_prompt or args.mitigation_mode:
         candidate_id = args.candidate_id or start_run(api_base, args, label="candidate", model=args.candidate_model)
         wait_for_run(api_base, candidate_id, args.timeout_seconds, args.poll_seconds)
         candidate = export_reports(api_base, candidate_id, out_dir, "candidate")
