@@ -29,6 +29,7 @@ class EvalRunRequest(BaseModel):
     use_mart: bool = True
     success_threshold: float = Field(default=6.0, ge=0, le=10)
     custom_judge_prompt: str | None = None
+    target_system_prompt: str | None = None
     temperature: float = Field(default=0.4, ge=0, le=2)
     max_tokens: int = Field(default=512, ge=64, le=4096)
 

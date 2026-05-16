@@ -73,6 +73,8 @@ def start_run(api_base: str, args: argparse.Namespace, *, label: str, model: str
         payload["judge_model"] = args.judge_model
     if args.custom_judge_prompt:
         payload["custom_judge_prompt"] = args.custom_judge_prompt
+    if args.target_system_prompt:
+        payload["target_system_prompt"] = args.target_system_prompt
 
     created = request_json(api_base, "/eval/run", method="POST", payload=payload)
     run_id = created["id"]
@@ -114,8 +116,65 @@ def export_reports(api_base: str, run_id: str, out_dir: Path, label: str) -> dic
     return json.loads(files["json"].read_text())
 
 
-def write_resume_summary(out_dir: Path, baseline: dict[str, Any], comparison: list[dict[str, Any]] | None) -> None:
-    summary = baseline.get("summary") or {}
+def summary_for(detail: dict[str, Any]) -> dict[str, Any]:
+    summary = detail.get("summary") or {}
+    if summary:
+        return summary
+    attacks = [attack for attack in detail.get("attacks", []) if attack.get("score") is not None]
+    total = len(attacks)
+    passed = sum(1 for attack in attacks if attack.get("passed"))
+    failed = total - passed
+    hallucination = [attack for attack in attacks if attack.get("category") == "hallucination"]
+    hallucination_failed = sum(1 for attack in hallucination if not attack.get("passed"))
+    return {
+        "n_attacks": total,
+        "pass_rate": round((passed / total * 100) if total else 0, 1),
+        "violation_rate": round((failed / total * 100) if total else 0, 1),
+        "hallucination_rate": round((hallucination_failed / len(hallucination) * 100) if hallucination else 0, 1),
+    }
+
+
+def reduction(before: float | None, after: float | None) -> float | None:
+    if before is None or after is None or before <= 0:
+        return None
+    return round((before - after) / before * 100, 1)
+
+
+def local_comparison(baseline: dict[str, Any], candidate: dict[str, Any]) -> list[dict[str, Any]]:
+    base = summary_for(baseline)
+    cand = summary_for(candidate)
+    return [
+        {
+            "run_id": baseline["id"],
+            "target_model": baseline.get("target_model"),
+            "pass_rate": base.get("pass_rate"),
+            "average_risk": base.get("average_risk"),
+            "violation_rate": base.get("violation_rate"),
+            "hallucination_rate": base.get("hallucination_rate"),
+            "violation_reduction_vs_first": None,
+            "n_attacks": base.get("n_attacks"),
+        },
+        {
+            "run_id": candidate["id"],
+            "target_model": candidate.get("target_model"),
+            "pass_rate": cand.get("pass_rate"),
+            "average_risk": cand.get("average_risk"),
+            "violation_rate": cand.get("violation_rate"),
+            "hallucination_rate": cand.get("hallucination_rate"),
+            "violation_reduction_vs_first": reduction(base.get("violation_rate"), cand.get("violation_rate")),
+            "n_attacks": cand.get("n_attacks"),
+        },
+    ]
+
+
+def write_resume_summary(
+    out_dir: Path,
+    baseline: dict[str, Any],
+    comparison: list[dict[str, Any]] | None,
+    candidate: dict[str, Any] | None = None,
+) -> None:
+    summary = summary_for(baseline)
+    candidate_summary = summary_for(candidate) if candidate else None
     evidence = {
         "baseline_run_id": baseline["id"],
         "target_model": baseline["target_model"],
@@ -125,6 +184,8 @@ def write_resume_summary(out_dir: Path, baseline: dict[str, Any], comparison: li
         "hallucination_rate": summary.get("hallucination_rate"),
         "average_risk": summary.get("average_risk"),
         "category_pass_rates": summary.get("category_pass_rates"),
+        "candidate_run_id": candidate.get("id") if candidate else None,
+        "candidate_summary": candidate_summary,
         "comparison": comparison or [],
     }
     (out_dir / "resume-evidence.json").write_text(json.dumps(evidence, indent=2))
@@ -138,8 +199,10 @@ def write_resume_summary(out_dir: Path, baseline: dict[str, Any], comparison: li
         f"{summary.get('violation_rate')}% overall violation rate across deployed adversarial eval runs."
     )
     if reduction is not None:
+        before = summary.get("violation_rate")
+        after = candidate_summary.get("violation_rate") if candidate_summary else None
         bullet_2 = (
-            f"Compared baseline vs improved model runs and measured {reduction}% violation-rate reduction "
+            f"Reduced violation rate from {before}% to {after}% ({reduction}% relative reduction) "
             f"using exported technical, CSV, JSON, and PDF audit artifacts."
         )
 
@@ -152,6 +215,9 @@ def write_resume_summary(out_dir: Path, baseline: dict[str, Any], comparison: li
 - Violation rate: `{summary.get('violation_rate')}%`
 - Hallucination failure rate: `{summary.get('hallucination_rate')}%`
 - Average risk: `{summary.get('average_risk')}/10`
+{f"- Improved run: `{candidate['id']}`" if candidate else ""}
+{f"- Improved violation rate: `{candidate_summary.get('violation_rate')}%`" if candidate_summary else ""}
+{f"- Violation reduction: `{reduction}%`" if reduction is not None else ""}
 
 ## Resume Bullets
 
@@ -166,6 +232,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--api-base", default=os.environ.get("DEPLOYED_API_BASE_URL") or os.environ.get("VITE_API_BASE_URL"))
     parser.add_argument("--out-dir", default=str(ROOT / "data" / "reports" / "deployed-evidence"))
     parser.add_argument("--baseline-id")
+    parser.add_argument("--baseline-file")
     parser.add_argument("--candidate-id")
     parser.add_argument("--target-model", default=os.environ.get("DEFAULT_TARGET_MODEL"))
     parser.add_argument("--candidate-model")
@@ -179,6 +246,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature", type=float, default=0.4)
     parser.add_argument("--max-tokens", type=int, default=512)
     parser.add_argument("--custom-judge-prompt")
+    parser.add_argument("--target-system-prompt")
     parser.add_argument("--poll-seconds", type=float, default=2.0)
     parser.add_argument("--timeout-seconds", type=int, default=3600)
     return parser.parse_args()
@@ -199,17 +267,26 @@ if __name__ == "__main__":
     health = request_json(api_base, "/health")
     print("health_ok=", health.get("ok"), "hf_configured=", health.get("hf_configured"))
 
-    baseline_id = args.baseline_id or start_run(api_base, args, label="baseline", model=args.target_model)
-    wait_for_run(api_base, baseline_id, args.timeout_seconds, args.poll_seconds)
-    baseline = export_reports(api_base, baseline_id, out_dir, "baseline")
+    if args.baseline_file:
+        baseline = json.loads(Path(args.baseline_file).read_text())
+        baseline_id = baseline["id"]
+        print(f"baseline_file={args.baseline_file}")
+    else:
+        baseline_id = args.baseline_id or start_run(api_base, args, label="baseline", model=args.target_model)
+        wait_for_run(api_base, baseline_id, args.timeout_seconds, args.poll_seconds)
+        baseline = export_reports(api_base, baseline_id, out_dir, "baseline")
 
     comparison = None
-    if args.candidate_id or args.candidate_model:
+    candidate = None
+    if args.candidate_id or args.candidate_model or args.target_system_prompt:
         candidate_id = args.candidate_id or start_run(api_base, args, label="candidate", model=args.candidate_model)
         wait_for_run(api_base, candidate_id, args.timeout_seconds, args.poll_seconds)
-        export_reports(api_base, candidate_id, out_dir, "candidate")
-        comparison = request_json(api_base, f"/eval/compare?run_ids={baseline_id},{candidate_id}")
+        candidate = export_reports(api_base, candidate_id, out_dir, "candidate")
+        if args.baseline_file:
+            comparison = local_comparison(baseline, candidate)
+        else:
+            comparison = request_json(api_base, f"/eval/compare?run_ids={baseline_id},{candidate_id}")
         (out_dir / "comparison.json").write_text(json.dumps(comparison, indent=2))
 
-    write_resume_summary(out_dir, baseline, comparison)
+    write_resume_summary(out_dir, baseline, comparison, candidate)
     print("evidence_dir=", out_dir)
