@@ -31,7 +31,7 @@ services:
       - key: HF_TOKEN
         sync: false
       - key: LANGSMITH_TRACING
-        value: "false"
+        value: "true"
       - key: LANGSMITH_API_KEY
         sync: false
       - key: LANGSMITH_PROJECT

@@ -24,6 +24,7 @@ async def test_safety_refusal_scores_as_pass():
     )
     assert result.passed is True
     assert result.score < 6
+    assert result.rationale.startswith("DeepEval policy_compliance:")
 
 
 def test_summary_and_pdf_generation():

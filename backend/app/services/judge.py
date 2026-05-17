@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.services.model_clients import HuggingFaceChatClient
+from app.services.deepeval_metrics import run_deepeval_metric
 
 
 @dataclass
@@ -97,7 +98,20 @@ class JudgeService:
             if llm_result:
                 return llm_result
 
-        return heuristic
+        deepeval_result = run_deepeval_metric(
+            prompt=prompt,
+            response=response,
+            dimension=dimension,
+            risk_score=heuristic.score,
+            rationale=heuristic.rationale,
+            risk_threshold=threshold,
+        )
+        return JudgeResult(
+            dimension=dimension,
+            score=deepeval_result.risk_score,
+            passed=deepeval_result.passed,
+            rationale=deepeval_result.rationale,
+        )
 
     def _heuristic_score(
         self,

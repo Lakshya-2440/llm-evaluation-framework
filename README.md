@@ -1,6 +1,6 @@
 # LLM Evaluation & Red-Teaming Framework
 
-Automated LLM evaluation platform with adversarial prompt generation, MART-style multi-round loops, DeepEval-aligned metrics, optional LangSmith tracing, judge scoring, reports, model comparison, REST API, Python/Node SDK starters, and CI templates.
+Automated LLM evaluation platform with adversarial prompt generation, MART-style multi-round loops, DeepEval custom metric execution, LangSmith tracing, judge scoring, reports, model comparison, REST API, Python/Node SDK starters, and CI templates.
 
 ## What Runs
 
@@ -85,8 +85,8 @@ curl "http://localhost:8000/eval/run/<run_id>/report?format=csv" -o results.csv
 
 - Attack suite: hallucination, safety, bias, robustness, privacy, tool misuse.
 - Generated prompt capacity: 500+ adversarial prompts from seed templates, domain variants, pressure patterns, and MART mutations.
-- Metric registry: DeepEval-aligned mappings for hallucination, safety, bias, robustness, privacy, and tool-governance scoring.
-- Tracing: optional LangSmith run and attack traces with `LANGSMITH_TRACING=true`.
+- Metrics: real DeepEval custom `BaseMetric` execution for hallucination, safety, bias, robustness, privacy, and tool-governance scoring.
+- Tracing: LangSmith run and attack traces with `LANGSMITH_TRACING=true`.
 - MART loop: each round mutates prompts using prior failures.
 - Judge system: heuristic judge by default, optional custom LLM judge prompt.
 - Reports: raw JSON, CSV, technical markdown, executive markdown, simple PDF, violation rate, hallucination failure rate, category failure counts.
@@ -118,7 +118,7 @@ This writes `data/reports/deployed-evidence/resume-evidence.md`, JSON/CSV/Markdo
 
 Strong truthful bullets after real run exports:
 
-- Built automated LLM eval framework testing 500+ adversarial prompts across 6 failure categories with DeepEval-aligned metrics, LangSmith tracing hooks, MART prompt mutation, and FastAPI/React reporting.
+- Built automated LLM eval framework testing 500+ adversarial prompts across 6 failure categories with DeepEval metrics, LangSmith tracing, MART prompt mutation, and FastAPI/React reporting.
 - Quantified hallucination and policy-violation rates across adversarial model runs, then compared baseline vs improved runs with violation-reduction reporting and exportable audit artifacts.
 
 ## Deployment

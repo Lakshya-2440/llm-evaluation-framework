@@ -20,6 +20,8 @@ METRIC_REGISTRY = [
     MetricSpec("tool_governance", "GEval", 0.6, "tool_misuse"),
 ]
 
+DEEPEVAL_EXECUTION_MODE = "custom BaseMetric runtime execution"
+
 
 def metric_registry() -> list[dict[str, str | float]]:
     return [
@@ -28,6 +30,7 @@ def metric_registry() -> list[dict[str, str | float]]:
             "deepeval_metric": metric.deepeval_metric,
             "threshold": metric.threshold,
             "category": metric.category,
+            "execution": DEEPEVAL_EXECUTION_MODE,
         }
         for metric in METRIC_REGISTRY
     ]
